@@ -1,0 +1,16 @@
+FROM quay.io/quarkus/quarkus-micro-image:2.0
+WORKDIR /app
+
+VOLUME /app/data
+
+EXPOSE 4566
+
+ARG VERSION=latest
+ARG BINARY_FILE=application
+
+ENV FLOCI_VERSION=${VERSION}
+
+COPY ${BINARY_FILE} /app/application
+RUN chmod +x /app/application
+
+ENTRYPOINT ["/app/application"]

@@ -1,0 +1,14 @@
+FROM eclipse-temurin:25-jre-alpine
+WORKDIR /app
+
+COPY quarkus-app/ quarkus-app/
+
+RUN mkdir -p /app/data
+VOLUME /app/data
+
+EXPOSE 4566 6379-6399
+
+ARG VERSION=latest
+ENV FLOCI_VERSION=${VERSION}
+
+ENTRYPOINT ["java", "-jar", "quarkus-app/quarkus-run.jar"]

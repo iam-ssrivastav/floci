@@ -22,7 +22,7 @@ VOLUME /app/data
 EXPOSE 4566
 
 ARG VERSION=latest
-ENV FLOCI_VERSION=1.0.2
+ENV FLOCI_VERSION=${VERSION}
 
 COPY --from=build /app/target/*-runner /app/application
 RUN chmod +x /app/application
