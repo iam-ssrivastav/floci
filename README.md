@@ -2,6 +2,15 @@
   <img src="logo.svg" alt="Floci" width="400" />
 </p>
 
+<p align="center">
+  <a href="https://github.com/hectorvent/floci/releases/latest"><img src="https://img.shields.io/github/v/release/hectorvent/floci?label=latest%20release&color=blue" alt="Latest Release"></a>
+  <a href="https://github.com/hectorvent/floci/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/hectorvent/floci/release.yml?label=build" alt="Build Status"></a>
+  <a href="https://hub.docker.com/r/hectorvent/floci"><img src="https://img.shields.io/docker/pulls/hectorvent/floci?label=docker%20pulls" alt="Docker Pulls"></a>
+  <a href="https://hub.docker.com/r/hectorvent/floci"><img src="https://img.shields.io/docker/image-size/hectorvent/floci/latest?label=image%20size" alt="Docker Image Size"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT"></a>
+  <a href="https://github.com/hectorvent/floci/stargazers"><img src="https://img.shields.io/github/stars/hectorvent/floci?style=flat" alt="GitHub Stars"></a>
+</p>
+
 <h3 align="center">🍿☁️ Light, fluffy, and always free</h3>
 
 <p align="center">
@@ -18,26 +27,25 @@
 
 ## Why Floci?
 
-| | Floci | LocalStack Community |
-|---|---|---|
+| | Floci | LocalStack Community   |
+|---|---|------------------------|
 | Auth token required | No | Yes (since March 2026) |
-| CI/CD support | Unlimited | Requires paid plan |
-| Security updates | Yes | Frozen |
-| Startup time | **~24 ms** | ~3.3 s |
-| Idle memory | **~13 MiB** | ~143 MiB |
-| Docker image size | **~90 MB** | ~1.0 GB |
-| License | **MIT** | Restricted |
-| API Gateway v2 / HTTP API | ✅ | ❌ |
-| Cognito | ✅ | ❌ |
-| ElastiCache (Redis + IAM auth) | ✅ | ❌ |
-| RDS (PostgreSQL + MySQL + IAM auth) | ✅ | ❌ |
-| S3 Object Lock (COMPLIANCE / GOVERNANCE) | ✅ | ⚠️ Partial |
-| DynamoDB Streams | ✅ | ⚠️ Partial |
-| IAM (users, roles, policies, groups) | ✅ | ⚠️ Partial |
-| STS (all 7 operations) | ✅ | ⚠️ Partial |
-| Kinesis (streams, shards, fan-out) | ✅ | ⚠️ Partial |
-| KMS (sign, verify, re-encrypt) | ✅ | ⚠️ Partial |
-| Native binary | ✅ ~40 MB | ❌ |
+| Security updates | Yes | Frozen                 |
+| Startup time | **~24 ms** | ~3.3 s                 |
+| Idle memory | **~13 MiB** | ~143 MiB               |
+| Docker image size | **~90 MB** | ~1.0 GB                |
+| License | **MIT** | Restricted             |
+| API Gateway v2 / HTTP API | Yes | No                     |
+| Cognito | Yes | No                     |
+| ElastiCache (Redis + IAM auth) | Yes | No                     |
+| RDS (PostgreSQL + MySQL + IAM auth) | Yes | No                     |
+| S3 Object Lock (COMPLIANCE / GOVERNANCE) | Yes | Partial                |
+| DynamoDB Streams | Yes | Partial                |
+| IAM (users, roles, policies, groups) | Yes | Partial                |
+| STS (all 7 operations) | Yes | Partial                |
+| Kinesis (streams, shards, fan-out) | Yes | Partial                |
+| KMS (sign, verify, re-encrypt) | Yes | Partial                |
+| Native binary | Yes (~40 MB) | No                     |
 
 **20+ services. 408/408 SDK tests passing. Free forever.**
 
