@@ -396,6 +396,66 @@ class KinesisIntegrationTest {
 
     @Test
     @Order(12)
+    void increaseRetentionPeriodSameValueIsNoOp() {
+        // Stream is currently at 48 (from Order 11). Increase to 48 should be a no-op,
+        // not an InvalidArgumentException. See #342: real AWS accepts same-value
+        // (terraform-provider-aws stream.go Create path calls this unconditionally on
+        // stream creation with the configured retention_period, so every default-retention
+        // TF stream would fail on first apply if AWS rejected same-value).
+        given()
+            .header("X-Amz-Target", "Kinesis_20131202.IncreaseStreamRetentionPeriod")
+            .contentType(KINESIS_CONTENT_TYPE)
+            .body("""
+                {"StreamName": "retention-test", "RetentionPeriodHours": 48}
+                """)
+        .when()
+            .post("/")
+        .then()
+            .statusCode(200);
+
+        given()
+            .header("X-Amz-Target", "Kinesis_20131202.DescribeStream")
+            .contentType(KINESIS_CONTENT_TYPE)
+            .body("""
+                {"StreamName": "retention-test"}
+                """)
+        .when()
+            .post("/")
+        .then()
+            .statusCode(200)
+            .body("StreamDescription.RetentionPeriodHours", equalTo(48));
+    }
+
+    @Test
+    @Order(13)
+    void decreaseRetentionPeriodSameValueIsNoOp() {
+        // Stream is still at 48. Decrease to 48 should also be a no-op.
+        given()
+            .header("X-Amz-Target", "Kinesis_20131202.DecreaseStreamRetentionPeriod")
+            .contentType(KINESIS_CONTENT_TYPE)
+            .body("""
+                {"StreamName": "retention-test", "RetentionPeriodHours": 48}
+                """)
+        .when()
+            .post("/")
+        .then()
+            .statusCode(200);
+
+        given()
+            .header("X-Amz-Target", "Kinesis_20131202.DescribeStream")
+            .contentType(KINESIS_CONTENT_TYPE)
+            .body("""
+                {"StreamName": "retention-test"}
+                """)
+        .when()
+            .post("/")
+        .then()
+            .statusCode(200)
+            .body("StreamDescription.RetentionPeriodHours", equalTo(48));
+    }
+
+    @Test
+    @Order(14)
     void listShardsForNonExistentStream() {
         given()
             .header("X-Amz-Target", "Kinesis_20131202.ListShards")

@@ -147,11 +147,18 @@ public class KinesisService {
             throw new AwsException("InvalidArgumentException",
                     "Retention period must not exceed 8760 hours (365 days)", 400);
         }
-        if (retentionPeriodHours <= stream.getRetentionPeriodHours()) {
+        if (retentionPeriodHours < stream.getRetentionPeriodHours()) {
             throw new AwsException("InvalidArgumentException",
                     "Requested retention period (" + retentionPeriodHours +
-                    " hours) must be greater than current retention period (" +
+                    " hours) must not be less than current retention period (" +
                     stream.getRetentionPeriodHours() + " hours)", 400);
+        }
+        // Same value is a no-op on real AWS despite the API doc wording ("must be more than
+        // current"). Proof: terraform-provider-aws calls IncreaseStreamRetentionPeriod on
+        // stream creation unconditionally when retention_period is set (stream.go Create path),
+        // so every default-retention TF stream would fail if AWS rejected same-value. See #342.
+        if (retentionPeriodHours == stream.getRetentionPeriodHours()) {
+            return;
         }
         stream.setRetentionPeriodHours(retentionPeriodHours);
         store.put(regionKey(region, streamName), stream);
@@ -164,11 +171,15 @@ public class KinesisService {
             throw new AwsException("InvalidArgumentException",
                     "Retention period must not be less than 24 hours", 400);
         }
-        if (retentionPeriodHours >= stream.getRetentionPeriodHours()) {
+        if (retentionPeriodHours > stream.getRetentionPeriodHours()) {
             throw new AwsException("InvalidArgumentException",
                     "Requested retention period (" + retentionPeriodHours +
-                    " hours) must be less than current retention period (" +
+                    " hours) must not be greater than current retention period (" +
                     stream.getRetentionPeriodHours() + " hours)", 400);
+        }
+        // Same value is a no-op on real AWS (mirrors IncreaseStreamRetentionPeriod). See #342.
+        if (retentionPeriodHours == stream.getRetentionPeriodHours()) {
+            return;
         }
         stream.setRetentionPeriodHours(retentionPeriodHours);
         store.put(regionKey(region, streamName), stream);
