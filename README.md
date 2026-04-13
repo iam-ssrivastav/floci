@@ -129,6 +129,8 @@ flowchart LR
 >
 > For per-service operation counts and endpoint protocols, see the [Services Overview](https://floci.io/floci/services/) in the documentation site.
 
+**29 AWS services supported.**
+
 ## Quick Start
 
 ```yaml
