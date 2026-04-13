@@ -5,7 +5,9 @@ import io.github.hectorvent.floci.core.common.ServiceRegistry;
 import io.github.hectorvent.floci.core.storage.StorageFactory;
 import io.github.hectorvent.floci.lifecycle.inithook.InitializationHook;
 import io.github.hectorvent.floci.lifecycle.inithook.InitializationHooksRunner;
+import io.github.hectorvent.floci.services.elasticache.container.ElastiCacheContainerManager;
 import io.github.hectorvent.floci.services.elasticache.proxy.ElastiCacheProxyManager;
+import io.github.hectorvent.floci.services.rds.container.RdsContainerManager;
 import io.github.hectorvent.floci.services.rds.proxy.RdsProxyManager;
 import io.quarkus.runtime.StartupEvent;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,7 +31,9 @@ class EmulatorLifecycleTest {
     @Mock private ServiceRegistry serviceRegistry;
     @Mock private EmulatorConfig config;
     @Mock private EmulatorConfig.StorageConfig storageConfig;
+    @Mock private ElastiCacheContainerManager elastiCacheContainerManager;
     @Mock private ElastiCacheProxyManager elastiCacheProxyManager;
+    @Mock private RdsContainerManager rdsContainerManager;
     @Mock private RdsProxyManager rdsProxyManager;
     @Mock private InitializationHooksRunner initializationHooksRunner;
 
@@ -42,7 +46,8 @@ class EmulatorLifecycleTest {
         when(storageConfig.persistentPath()).thenReturn("/app/data");
         emulatorLifecycle = new EmulatorLifecycle(
                 storageFactory, serviceRegistry, config,
-                elastiCacheProxyManager, rdsProxyManager, initializationHooksRunner);
+                elastiCacheContainerManager, elastiCacheProxyManager,
+                rdsContainerManager, rdsProxyManager, initializationHooksRunner);
     }
 
     @Test

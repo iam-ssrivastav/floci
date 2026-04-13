@@ -1,6 +1,7 @@
 package io.github.hectorvent.floci.services.elasticache;
 
 import io.quarkus.test.junit.QuarkusTest;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.MethodOrderer;
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 
 import java.io.IOException;
+import java.util.List;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
@@ -41,6 +43,28 @@ class ElastiCacheIntegrationTest {
     @BeforeAll
     static void requireDocker() {
         Assumptions.assumeTrue(isDockerAvailable(), "Docker daemon must be available for ElastiCache integration tests");
+    }
+
+    @AfterAll
+    static void cleanup() {
+        // Best-effort cleanup of any resources created during tests.
+        // Prevents orphaned containers/state if a test fails mid-way.
+        for (String groupId : List.of(CROSS_GROUP_ID, GROUP_ID, GROUP_ID + "-reused")) {
+            try {
+                given()
+                    .formParam("Action", "DeleteReplicationGroup")
+                    .formParam("ReplicationGroupId", groupId)
+                    .header("Authorization", AUTH_HEADER)
+                    .post("/");
+            } catch (Exception ignored) {}
+        }
+        try {
+            given()
+                .formParam("Action", "DeleteUser")
+                .formParam("UserId", USER_ID)
+                .header("Authorization", AUTH_HEADER)
+                .post("/");
+        } catch (Exception ignored) {}
     }
 
     @Test

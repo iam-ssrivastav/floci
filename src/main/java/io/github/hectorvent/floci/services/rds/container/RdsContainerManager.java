@@ -23,9 +23,11 @@ import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Manages backend Docker container lifecycle for RDS DB instances and clusters.
@@ -43,6 +45,7 @@ public class RdsContainerManager {
     private final EmulatorConfig config;
     private final CloudWatchLogsService cloudWatchLogsService;
     private final RegionResolver regionResolver;
+    private final Map<String, RdsContainerHandle> activeContainers = new ConcurrentHashMap<>();
 
     @Inject
     public RdsContainerManager(DockerClient dockerClient,
@@ -78,6 +81,14 @@ public class RdsContainerManager {
                         LOG.debugv("Attaching RDS container to network: {0}", network);
                     }
                 });
+
+        // Remove any stale container with the same name (from a previous interrupted run)
+        try {
+            dockerClient.removeContainerCmd(containerName).withForce(true).exec();
+            LOG.infov("Removed stale container {0} before creating new one", containerName);
+        } catch (com.github.dockerjava.api.exception.NotFoundException ignored) {
+            // No existing container — normal path
+        }
 
         List<String> envVars = buildEnvVars(engine, masterUsername, masterPassword, dbName);
         List<String> cmd = buildContainerCmd(engine);
@@ -135,6 +146,7 @@ public class RdsContainerManager {
         LOG.infov("RDS backend for instance {0}: {1}:{2}", instanceId, backendHost, backendPort);
 
         RdsContainerHandle handle = new RdsContainerHandle(containerId, instanceId, backendHost, backendPort);
+        activeContainers.put(instanceId, handle);
         String shortId = containerId.length() >= 8 ? containerId.substring(0, 8) : containerId;
         attachLogStream(handle, instanceId, containerId, shortId);
         return handle;
@@ -144,6 +156,7 @@ public class RdsContainerManager {
         if (handle == null) {
             return;
         }
+        activeContainers.remove(handle.getInstanceId());
         LOG.infov("Stopping RDS container {0}", handle.getContainerId());
 
         if (handle.getLogStream() != null) {
@@ -160,6 +173,16 @@ public class RdsContainerManager {
             dockerClient.removeContainerCmd(handle.getContainerId()).withForce(true).exec();
         } catch (Exception e) {
             LOG.warnv("Error removing RDS container {0}: {1}", handle.getContainerId(), e.getMessage());
+        }
+    }
+
+    public void stopAll() {
+        List<RdsContainerHandle> handles = new ArrayList<>(activeContainers.values());
+        if (!handles.isEmpty()) {
+            LOG.infov("Stopping {0} RDS container(s) on shutdown", handles.size());
+        }
+        for (RdsContainerHandle handle : handles) {
+            stop(handle);
         }
     }
 

@@ -446,4 +446,101 @@ class IamServiceTest {
         assertEquals(1, profiles.size());
         assertEquals("P1", profiles.getFirst().getInstanceProfileName());
     }
+
+    // =========================================================================
+    // AWS Managed Policy Seeding
+    // =========================================================================
+
+    @Test
+    void seedAwsManagedPolicies() {
+        iamService.seedAwsManagedPolicies();
+
+        IamPolicy admin = iamService.getPolicy("arn:aws:iam::aws:policy/AdministratorAccess");
+        assertEquals("AdministratorAccess", admin.getPolicyName());
+        assertEquals("/", admin.getPath());
+        assertTrue(admin.getPolicyId().startsWith("ANPA"));
+        assertEquals("v1", admin.getDefaultVersionId());
+
+        IamPolicy lambda = iamService.getPolicy(
+                "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole");
+        assertEquals("AWSLambdaBasicExecutionRole", lambda.getPolicyName());
+        assertEquals("/service-role/", lambda.getPath());
+    }
+
+    @Test
+    void seedIsIdempotent() {
+        iamService.seedAwsManagedPolicies();
+        String firstId = iamService.getPolicy("arn:aws:iam::aws:policy/AdministratorAccess").getPolicyId();
+
+        iamService.seedAwsManagedPolicies();
+        String secondId = iamService.getPolicy("arn:aws:iam::aws:policy/AdministratorAccess").getPolicyId();
+
+        assertEquals(firstId, secondId);
+    }
+
+    @Test
+    void attachManagedPolicyToRole() {
+        iamService.seedAwsManagedPolicies();
+        iamService.createRole("LambdaExec", "/", "{}", null, 0, null);
+
+        String policyArn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole";
+        iamService.attachRolePolicy("LambdaExec", policyArn);
+
+        List<IamPolicy> attached = iamService.listAttachedRolePolicies("LambdaExec", null);
+        assertEquals(1, attached.size());
+        assertEquals(policyArn, attached.getFirst().getArn());
+    }
+
+    @Test
+    void awsManagedPolicyDeleteRejected() {
+        iamService.seedAwsManagedPolicies();
+        String arn = "arn:aws:iam::aws:policy/AdministratorAccess";
+        AwsException ex = assertThrows(AwsException.class, () -> iamService.deletePolicy(arn));
+        assertEquals("AccessDenied", ex.getErrorCode());
+    }
+
+    @Test
+    void awsManagedPolicyCreateVersionRejected() {
+        iamService.seedAwsManagedPolicies();
+        String arn = "arn:aws:iam::aws:policy/AdministratorAccess";
+        assertThrows(AwsException.class, () -> iamService.createPolicyVersion(arn, "{}", false));
+    }
+
+    @Test
+    void awsManagedPolicyTagRejected() {
+        iamService.seedAwsManagedPolicies();
+        String arn = "arn:aws:iam::aws:policy/AdministratorAccess";
+        assertThrows(AwsException.class, () -> iamService.tagPolicy(arn, Map.of("k", "v")));
+    }
+
+    @Test
+    void awsManagedPolicyUntagRejected() {
+        iamService.seedAwsManagedPolicies();
+        String arn = "arn:aws:iam::aws:policy/AdministratorAccess";
+        assertThrows(AwsException.class, () -> iamService.untagPolicy(arn, List.of("k")));
+    }
+
+    @Test
+    void listPoliciesInvalidScopeRejected() {
+        AwsException ex = assertThrows(AwsException.class,
+                () -> iamService.listPolicies("Invalid", "/"));
+        assertEquals("ValidationError", ex.getErrorCode());
+    }
+
+    @Test
+    void listPoliciesScopeFiltering() {
+        iamService.seedAwsManagedPolicies();
+        iamService.createPolicy("MyCustomPolicy", "/", null, "{}", null);
+
+        List<IamPolicy> awsOnly = iamService.listPolicies("AWS", "/");
+        assertTrue(awsOnly.stream().allMatch(p -> p.getArn().startsWith("arn:aws:iam::aws:policy")));
+        assertFalse(awsOnly.isEmpty());
+
+        List<IamPolicy> localOnly = iamService.listPolicies("Local", "/");
+        assertTrue(localOnly.stream().noneMatch(p -> p.getArn().startsWith("arn:aws:iam::aws:policy")));
+        assertEquals(1, localOnly.size());
+
+        List<IamPolicy> all = iamService.listPolicies(null, "/");
+        assertEquals(awsOnly.size() + localOnly.size(), all.size());
+    }
 }

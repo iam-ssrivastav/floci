@@ -22,9 +22,11 @@ import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Manages backend Docker container lifecycle for ElastiCache replication groups.
@@ -44,6 +46,7 @@ public class ElastiCacheContainerManager {
     private final EmulatorConfig config;
     private final CloudWatchLogsService cloudWatchLogsService;
     private final RegionResolver regionResolver;
+    private final Map<String, ElastiCacheContainerHandle> activeContainers = new ConcurrentHashMap<>();
 
     @Inject
     public ElastiCacheContainerManager(DockerClient dockerClient,
@@ -75,6 +78,14 @@ public class ElastiCacheContainerManager {
                         LOG.debugv("Attaching ElastiCache container to network: {0}", network);
                     }
                 });
+
+        // Remove any stale container with the same name (from a previous interrupted run)
+        try {
+            dockerClient.removeContainerCmd(containerName).withForce(true).exec();
+            LOG.infov("Removed stale container {0} before creating new one", containerName);
+        } catch (com.github.dockerjava.api.exception.NotFoundException ignored) {
+            // No existing container — normal path
+        }
 
         CreateContainerResponse container = dockerClient.createContainerCmd(image)
                 .withName(containerName)
@@ -128,6 +139,7 @@ public class ElastiCacheContainerManager {
 
         ElastiCacheContainerHandle handle = new ElastiCacheContainerHandle(
                 containerId, groupId, backendHost, backendPort);
+        activeContainers.put(groupId, handle);
 
         String shortId = containerId.length() >= 8 ? containerId.substring(0, 8) : containerId;
         attachLogStream(handle, groupId, containerId, shortId);
@@ -139,6 +151,7 @@ public class ElastiCacheContainerManager {
         if (handle == null) {
             return;
         }
+        activeContainers.remove(handle.getGroupId());
         LOG.infov("Stopping ElastiCache container {0}", handle.getContainerId());
 
         if (handle.getLogStream() != null) {
@@ -157,6 +170,16 @@ public class ElastiCacheContainerManager {
         } catch (Exception e) {
             LOG.warnv("Error removing ElastiCache container {0}: {1}",
                     handle.getContainerId(), e.getMessage());
+        }
+    }
+
+    public void stopAll() {
+        List<ElastiCacheContainerHandle> handles = new ArrayList<>(activeContainers.values());
+        if (!handles.isEmpty()) {
+            LOG.infov("Stopping {0} ElastiCache container(s) on shutdown", handles.size());
+        }
+        for (ElastiCacheContainerHandle handle : handles) {
+            stop(handle);
         }
     }
 

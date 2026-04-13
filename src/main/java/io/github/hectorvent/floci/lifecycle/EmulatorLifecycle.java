@@ -5,7 +5,9 @@ import io.github.hectorvent.floci.core.common.ServiceRegistry;
 import io.github.hectorvent.floci.core.storage.StorageFactory;
 import io.github.hectorvent.floci.lifecycle.inithook.InitializationHook;
 import io.github.hectorvent.floci.lifecycle.inithook.InitializationHooksRunner;
+import io.github.hectorvent.floci.services.elasticache.container.ElastiCacheContainerManager;
 import io.github.hectorvent.floci.services.elasticache.proxy.ElastiCacheProxyManager;
+import io.github.hectorvent.floci.services.rds.container.RdsContainerManager;
 import io.github.hectorvent.floci.services.rds.proxy.RdsProxyManager;
 import io.quarkus.runtime.Quarkus;
 import io.quarkus.runtime.ShutdownEvent;
@@ -28,18 +30,26 @@ public class EmulatorLifecycle {
     private final StorageFactory storageFactory;
     private final ServiceRegistry serviceRegistry;
     private final EmulatorConfig config;
+    private final ElastiCacheContainerManager elastiCacheContainerManager;
     private final ElastiCacheProxyManager elastiCacheProxyManager;
+    private final RdsContainerManager rdsContainerManager;
     private final RdsProxyManager rdsProxyManager;
     private final InitializationHooksRunner initializationHooksRunner;
 
     @Inject
     public EmulatorLifecycle(StorageFactory storageFactory, ServiceRegistry serviceRegistry,
-                             EmulatorConfig config, ElastiCacheProxyManager elastiCacheProxyManager,
-                             RdsProxyManager rdsProxyManager, InitializationHooksRunner initializationHooksRunner) {
+                             EmulatorConfig config,
+                             ElastiCacheContainerManager elastiCacheContainerManager,
+                             ElastiCacheProxyManager elastiCacheProxyManager,
+                             RdsContainerManager rdsContainerManager,
+                             RdsProxyManager rdsProxyManager,
+                             InitializationHooksRunner initializationHooksRunner) {
         this.storageFactory = storageFactory;
         this.serviceRegistry = serviceRegistry;
         this.config = config;
+        this.elastiCacheContainerManager = elastiCacheContainerManager;
         this.elastiCacheProxyManager = elastiCacheProxyManager;
+        this.rdsContainerManager = rdsContainerManager;
         this.rdsProxyManager = rdsProxyManager;
         this.initializationHooksRunner = initializationHooksRunner;
     }
@@ -86,6 +96,8 @@ public class EmulatorLifecycle {
         } finally {
             elastiCacheProxyManager.stopAll();
             rdsProxyManager.stopAll();
+            elastiCacheContainerManager.stopAll();
+            rdsContainerManager.stopAll();
             storageFactory.shutdownAll();
         }
 
