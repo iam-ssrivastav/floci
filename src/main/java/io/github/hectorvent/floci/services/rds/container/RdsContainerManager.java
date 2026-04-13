@@ -10,10 +10,12 @@ import io.github.hectorvent.floci.services.rds.model.DatabaseEngine;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.command.CreateContainerResponse;
+import com.github.dockerjava.api.model.Bind;
 import com.github.dockerjava.api.model.ExposedPort;
 import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.Ports;
+import com.github.dockerjava.api.model.Volume;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
@@ -21,6 +23,7 @@ import org.jboss.logging.Logger;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -70,7 +73,37 @@ public class RdsContainerManager {
 
         int enginePort = engine.defaultPort();
 
+        String hostPersistentPath = config.storage().hostPersistentPath();
+        boolean isVolume = !hostPersistentPath.startsWith("/") && !hostPersistentPath.startsWith(".");
+
         HostConfig hostConfig = buildHostConfig(enginePort);
+        List<String> envVars = buildEnvVars(engine, masterUsername, masterPassword, dbName);
+
+        if (isVolume) {
+            String internalMountPath = "/app/data";
+            hostConfig.withBinds(new Bind(hostPersistentPath, new Volume(internalMountPath)));
+            String dataPath = internalMountPath + "/rds/" + instanceId;
+            if (engine == DatabaseEngine.POSTGRES) {
+                envVars.add("PGDATA=" + dataPath);
+            } else {
+                // MySQL / MariaDB typically use /var/lib/mysql
+                // For volume mode, we can't easily remount a subpath to /var/lib/mysql
+                // but we can try to change the engine's data dir via CMD if needed.
+                // For now, let's use Bind for directory mode and warn for Volume mode if not Postgres.
+                LOG.warnv("Volume-based persistence for RDS engine {0} is currently only optimized for POSTGRES. Using default non-persistent path.", engine);
+            }
+        } else {
+            String dataPath = Path.of(config.storage().persistentPath(), "rds", instanceId).toAbsolutePath().toString();
+            try {
+                java.nio.file.Files.createDirectories(Path.of(dataPath));
+                String hostDataPath = Path.of(hostPersistentPath, "rds", instanceId).toAbsolutePath().toString();
+                String target = (engine == DatabaseEngine.POSTGRES) ? "/var/lib/postgresql/data" : "/var/lib/mysql";
+                hostConfig.withBinds(new Bind(hostDataPath, new Volume(target)));
+            } catch (IOException e) {
+                LOG.errorv("Failed to create RDS data directory: {0}", dataPath, e);
+            }
+        }
+
         String containerName = "floci-rds-" + instanceId;
 
         config.services().rds().dockerNetwork()
@@ -90,7 +123,6 @@ public class RdsContainerManager {
             // No existing container — normal path
         }
 
-        List<String> envVars = buildEnvVars(engine, masterUsername, masterPassword, dbName);
         List<String> cmd = buildContainerCmd(engine);
 
         var createCmd = dockerClient.createContainerCmd(image)

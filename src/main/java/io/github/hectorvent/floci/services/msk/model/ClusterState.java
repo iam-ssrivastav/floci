@@ -1,0 +1,22 @@
+package io.github.hectorvent.floci.services.msk.model;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+public enum ClusterState {
+    @JsonProperty("ACTIVE")
+    ACTIVE,
+    @JsonProperty("CREATING")
+    CREATING,
+    @JsonProperty("DELETING")
+    DELETING,
+    @JsonProperty("FAILED")
+    FAILED,
+    @JsonProperty("HEALING")
+    HEALING,
+    @JsonProperty("MAINTENANCE")
+    MAINTENANCE,
+    @JsonProperty("REBOOTING_BROKER")
+    REBOOTING_BROKER,
+    @JsonProperty("UPDATING")
+    UPDATING
+}

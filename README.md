@@ -44,6 +44,7 @@
 | Cognito | ✅ | ❌ |
 | ElastiCache (Redis + IAM auth) | ✅ | ❌ |
 | RDS (PostgreSQL + MySQL + IAM auth) | ✅ | ❌ |
+| MSK (Kafka + Redpanda) | ✅ | ❌ |
 | S3 Object Lock (COMPLIANCE / GOVERNANCE) | ✅ | ⚠️ Partial |
 | DynamoDB Streams | ✅ | ⚠️ Partial |
 | IAM (users, roles, policies, groups) | ✅ | ⚠️ Partial |
@@ -74,7 +75,7 @@ flowchart LR
         end
 
         subgraph Containers ["Container Services  🐳"]
-            C["Lambda\nElastiCache\nRDS\nECS"]
+            C["Lambda\nElastiCache\nRDS\nECS\nMSK"]
         end
 
         Router --> Stateless
@@ -115,6 +116,7 @@ flowchart LR
 | **CloudWatch Metrics** | In-process | Custom metrics, statistics, alarms |
 | **ElastiCache** | **Real Docker containers** | Redis / Valkey, IAM auth, SigV4 validation |
 | **RDS** | **Real Docker containers** | PostgreSQL & MySQL, IAM auth, JDBC-compatible |
+| **MSK** | **Real Docker containers** | Kafka compatible via Redpanda orchestration |
 | **ECS** | **Real Docker containers** | Clusters, task definitions, tasks, services, capacity providers, task sets |
 | **EC2** | In-process | VPCs, subnets, security groups, instances, AMIs, key pairs, internet gateways, route tables, Elastic IPs, tags |
 | **ACM** | In-process | Certificate issuance, validation lifecycle |
@@ -125,11 +127,11 @@ flowchart LR
 | **AppConfig** | In-process | Applications, environments, profiles, hosted configuration versions, deployments |
 | **AppConfigData** | In-process | Configuration sessions, dynamic configuration retrieval |
 
-> **Lambda, ElastiCache, RDS, and ECS** spin up real Docker containers and support IAM authentication and SigV4 request signing — the same auth flow as production AWS. **ECR** runs a shared `registry:2` container so the stock `docker` client can push and pull image bytes against repositories returned by the AWS-shaped control plane.
+> **Lambda, ElastiCache, RDS, MSK, and ECS** spin up real Docker containers and support IAM authentication and SigV4 request signing — the same auth flow as production AWS. **ECR** runs a shared `registry:2` container so the stock `docker` client can push and pull image bytes against repositories returned by the AWS-shaped control plane.
 >
 > For per-service operation counts and endpoint protocols, see the [Services Overview](https://floci.io/floci/services/) in the documentation site.
 
-**29 AWS services supported.**
+**30 AWS services supported.**
 
 ## Quick Start
 

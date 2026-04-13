@@ -134,10 +134,26 @@ public class EcrRegistryManager {
         Ports portBindings = new Ports();
         portBindings.bind(exposed, Ports.Binding.bindPort(chosenPort));
 
-        String dataPath = Paths.get(config.services().ecr().dataPath(), "registry").toAbsolutePath().toString();
+        String hostPersistentPath = config.storage().hostPersistentPath();
+        boolean isVolume = !hostPersistentPath.startsWith("/") && !hostPersistentPath.startsWith(".");
+
         HostConfig hostConfig = HostConfig.newHostConfig()
-                .withPortBindings(portBindings)
-                .withBinds(new Bind(dataPath, new Volume("/var/lib/registry")));
+                .withPortBindings(portBindings);
+
+        List<String> env = new java.util.ArrayList<>(List.of(
+                "REGISTRY_STORAGE_DELETE_ENABLED=true",
+                "REGISTRY_HTTP_ADDR=0.0.0.0:" + CONTAINER_INTERNAL_PORT
+        ));
+
+        if (isVolume) {
+            String internalMountPath = "/app/data";
+            hostConfig.withBinds(new Bind(hostPersistentPath, new Volume(internalMountPath)));
+            env.add("REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY=" + internalMountPath + "/ecr/registry");
+        } else {
+            String dataPath = Paths.get(config.services().ecr().dataPath(), "registry").toAbsolutePath().toString();
+            String hostDataPath = dataPath.replace(config.storage().persistentPath(), hostPersistentPath);
+            hostConfig.withBinds(new Bind(hostDataPath, new Volume("/var/lib/registry")));
+        }
 
         config.services().ecr().dockerNetwork()
                 .or(() -> config.services().dockerNetwork())
@@ -147,9 +163,7 @@ public class EcrRegistryManager {
         try {
             CreateContainerResponse created = dockerClient.createContainerCmd(image)
                     .withName(name)
-                    .withEnv(
-                            "REGISTRY_STORAGE_DELETE_ENABLED=true",
-                            "REGISTRY_HTTP_ADDR=0.0.0.0:" + CONTAINER_INTERNAL_PORT)
+                    .withEnv(env)
                     .withExposedPorts(exposed)
                     .withHostConfig(hostConfig)
                     .exec();

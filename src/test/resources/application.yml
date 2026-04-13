@@ -67,6 +67,10 @@ floci:
     iam:
       enabled: true
       enforcement-enabled: false
+    msk:
+      enabled: true
+      mock: true
+      default-image: "redpandadata/redpanda:latest"
     elasticache:
       enabled: true
       proxy-base-port: 6379

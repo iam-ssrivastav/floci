@@ -85,6 +85,7 @@ nav:
     - STS: services/sts.md
     - ElastiCache: services/elasticache.md
     - RDS: services/rds.md
+    - MSK (Kafka): services/msk.md
     - EventBridge: services/eventbridge.md
     - EventBridge Scheduler: services/scheduler.md
     - CloudWatch: services/cloudwatch.md

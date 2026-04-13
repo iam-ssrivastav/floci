@@ -62,6 +62,10 @@ public interface EmulatorConfig {
         @WithDefault("./data")
         String persistentPath();
 
+        /** The path on the host machine where data is stored. Useful for Docker-in-Docker. */
+        @WithDefault("${floci.storage.persistent-path}")
+        String hostPersistentPath();
+
         WalConfig wal();
 
         ServiceStorageOverrides services();
@@ -202,6 +206,7 @@ public interface EmulatorConfig {
         LambdaServiceConfig lambda();
         ApiGatewayServiceConfig apigateway();
         IamServiceConfig iam();
+        MskServiceConfig msk();
         ElastiCacheServiceConfig elasticache();
         RdsServiceConfig rds();
         EventBridgeServiceConfig eventbridge();
@@ -273,6 +278,17 @@ public interface EmulatorConfig {
 
         @WithDefault("false")
         boolean enforcementEnabled();
+    }
+
+    interface MskServiceConfig {
+        @WithDefault("true")
+        boolean enabled();
+
+        @WithDefault("false")
+        boolean mock();
+
+        @WithDefault("redpandadata/redpanda:latest")
+        String defaultImage();
     }
 
     interface ElastiCacheServiceConfig {
@@ -442,7 +458,7 @@ public interface EmulatorConfig {
         @WithDefault("5199")
         int registryMaxPort();
 
-        @WithDefault("./data/ecr")
+        @WithDefault("${floci.storage.persistent-path}/ecr")
         String dataPath();
 
         @WithDefault("false")

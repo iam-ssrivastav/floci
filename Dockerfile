@@ -26,5 +26,6 @@ HEALTHCHECK --interval=5s --timeout=3s --retries=5 \
 
 ARG VERSION=latest
 ENV FLOCI_VERSION=${VERSION}
+ENV FLOCI_STORAGE_PERSISTENT_PATH=/app/data
 
 ENTRYPOINT ["java", "-jar", "quarkus-app/quarkus-run.jar"]
