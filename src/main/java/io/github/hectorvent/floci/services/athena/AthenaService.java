@@ -16,6 +16,8 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @ApplicationScoped
 public class AthenaService {
@@ -23,7 +25,14 @@ public class AthenaService {
     private static final Logger LOG = Logger.getLogger(AthenaService.class);
 
     private final StorageBackend<String, QueryExecution> queryStore;
-    private final Map<String, List<List<String>>> queryResults = new HashMap<>();
+    // Bounded result cache: oldest entries evicted beyond 1000 to prevent unbounded memory growth.
+    private final Map<String, List<List<String>>> queryResults = Collections.synchronizedMap(
+            new LinkedHashMap<>() {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, List<List<String>>> eldest) {
+                    return size() > 1000;
+                }
+            });
     private final GlueService glueService;
     private final DuckDbEngine duckDbEngine;
     private final ExecutorService executor = Executors.newFixedThreadPool(4);
@@ -77,23 +86,25 @@ public class AthenaService {
     }
 
     private String rewriteQuery(String sql, String database) {
-        // This is a naive implementation. A real one would use a proper SQL parser.
-        // For MVP, we'll try to find table names and check Glue.
-        String lowerSql = sql.toLowerCase();
         for (Table table : glueService.getTables(database)) {
             String tableName = table.getName();
-            if (lowerSql.contains(tableName.toLowerCase())) {
-                String location = table.getStorageDescriptor().getLocation();
-                if (location.endsWith("/")) location += "**";
-                
-                String replacement;
-                if (table.getStorageDescriptor().getInputFormat().contains("Parquet")) {
-                    replacement = "read_parquet('" + location + "')";
-                } else {
-                    replacement = "read_csv_auto('" + location + "')";
-                }
-                sql = sql.replaceAll("(?i)\\b" + tableName + "\\b", replacement);
+            String location = table.getStorageDescriptor().getLocation();
+            if (location.endsWith("/")) {
+                location += "**";
             }
+
+            String duckDbSource;
+            if (table.getStorageDescriptor().getInputFormat() != null
+                    && table.getStorageDescriptor().getInputFormat().contains("Parquet")) {
+                duckDbSource = "read_parquet('" + location + "')";
+            } else {
+                duckDbSource = "read_csv_auto('" + location + "')";
+            }
+
+            // Only substitute table name when it appears as a FROM or JOIN target,
+            // not inside SELECT columns, WHERE clauses, or string literals.
+            String pattern = "(?i)(\\bFROM\\s+|\\bJOIN\\s+)" + Pattern.quote(tableName) + "\\b";
+            sql = sql.replaceAll(pattern, "$1" + Matcher.quoteReplacement(duckDbSource));
         }
         return sql;
     }

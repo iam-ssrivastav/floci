@@ -45,9 +45,9 @@
 | ElastiCache (Redis + IAM auth) | ✅ | ❌ |
 | RDS (PostgreSQL + MySQL + IAM auth) | ✅ | ❌ |
 | MSK (Kafka + Redpanda) | ✅ | ❌ |
-| Athena (SQL on S3 + DuckDB) | ✅ | ❌ |
+| Athena (SQL on S3 + DuckDB) | ✅ JVM · ⚠️ Native¹ | ❌ |
 | Glue Data Catalog | ✅ | ❌ |
-| Data Firehose (JSON to Parquet) | ✅ | ❌ |
+| Data Firehose (JSON to Parquet) | ✅ JVM · ⚠️ Native¹ | ❌ |
 | S3 Object Lock (COMPLIANCE / GOVERNANCE) | ✅ | ⚠️ Partial |
 | DynamoDB Streams | ✅ | ⚠️ Partial |
 | IAM (users, roles, policies, groups) | ✅ | ⚠️ Partial |
@@ -57,6 +57,8 @@
 | ECS (clusters, services, tasks) | ✅ | ❌ |
 | EC2 (VPCs, instances, security groups) | ✅ | ⚠️ Partial |
 | Native binary | ✅ ~40 MB | ❌ |
+
+¹ **Athena query execution** and **Firehose Parquet conversion** require DuckDB, which is only available in the JVM image (`latest-jvm` tag). In the native image, Glue Data Catalog CRUD and Firehose metadata operations work fully; queries return an unsupported-operation error and Firehose flushes raw NDJSON instead of Parquet.
 
 **Broad AWS coverage. 1,850+ automated compatibility tests. Free forever.**
 
@@ -120,9 +122,9 @@ flowchart LR
 | **ElastiCache** | **Real Docker containers** | Redis / Valkey, IAM auth, SigV4 validation |
 | **RDS** | **Real Docker containers** | PostgreSQL & MySQL, IAM auth, JDBC-compatible |
 | **MSK** | **Real Docker containers** | Kafka compatible via Redpanda orchestration |
-| **Athena** | In-process | SQL query engine powered by DuckDB, Parquet/CSV support |
+| **Athena** | In-process | SQL query engine powered by DuckDB (**JVM image only**), Parquet/CSV support |
 | **Glue** | In-process | Data Catalog for metadata management |
-| **Data Firehose** | In-process | Streaming data delivery with Parquet conversion |
+| **Data Firehose** | In-process | Streaming data delivery; Parquet conversion via DuckDB (**JVM image only**), raw NDJSON fallback in native image |
 | **ECS** | **Real Docker containers** | Clusters, task definitions, tasks, services, capacity providers, task sets |
 | **EC2** | In-process | VPCs, subnets, security groups, instances, AMIs, key pairs, internet gateways, route tables, Elastic IPs, tags |
 | **ACM** | In-process | Certificate issuance, validation lifecycle |
@@ -238,8 +240,10 @@ Available compatibility test modules:
 | Tag | Description |
 |---|---|
 | `latest` | Native image — sub-second startup **(recommended)** |
-| `latest-jvm` | JVM image — broadest platform compatibility |
+| `latest-jvm` | JVM image — includes DuckDB for Athena queries and Firehose Parquet conversion |
 | `x.y.z` / `x.y.z-jvm` | Pinned releases |
+
+> **DuckDB availability:** Athena query execution and Firehose Parquet conversion are powered by [DuckDB](https://duckdb.org/), which requires the JVM image (`latest-jvm`). The native image (`latest`) fully supports all Glue, Firehose, and Athena metadata operations — only DuckDB-backed query execution and Parquet conversion are unavailable. Both images gracefully report this limitation at runtime rather than crashing.
 
 ## Configuration
 

@@ -74,8 +74,10 @@ public class FirehoseService {
             buffer.clear();
         }
 
+        Path tempJson = null;
+        Path tempParquet = null;
         try {
-            Path tempJson = Files.createTempFile("firehose-" + streamName, ".json");
+            tempJson = Files.createTempFile("firehose-" + streamName + "-", ".json");
             StringBuilder sb = new StringBuilder();
             for (byte[] data : toFlush) {
                 sb.append(new String(data, StandardCharsets.UTF_8)).append("\n");
@@ -84,22 +86,46 @@ public class FirehoseService {
 
             String bucket = "floci-firehose-results";
             String key = streamName + "/" + UUID.randomUUID() + ".parquet";
-            
+
             try {
                 s3Service.createBucket(bucket, "us-east-1");
             } catch (Exception ignored) {}
 
-            // Use DuckDB to convert JSON to Parquet and upload to S3
-            // Note: We use COPY to S3 directly via httpfs
-            String sql = String.format("COPY (SELECT * FROM read_json_auto('%s')) TO 's3://%s/%s' (FORMAT PARQUET);",
-                    tempJson.toAbsolutePath(), bucket, key);
-            
-            duckDbEngine.executeUpdate(sql);
-            
-            Files.deleteIfExists(tempJson);
-            LOG.infov("Flushed {0} records from stream {1} to s3://{2}/{3} (Parquet)", toFlush.size(), streamName, bucket, key);
+            if (duckDbEngine.isAvailable()) {
+                // Convert JSON → Parquet locally via DuckDB, then upload via S3Service.
+                // Writing to a local temp file avoids the httpfs circular-S3 dependency.
+                tempParquet = Files.createTempFile("firehose-" + streamName + "-", ".parquet");
+                String sql = String.format(
+                        "COPY (SELECT * FROM read_json_auto('%s')) TO '%s' (FORMAT PARQUET);",
+                        tempJson.toAbsolutePath(), tempParquet.toAbsolutePath());
+                duckDbEngine.executeUpdate(sql);
+
+                byte[] parquetBytes = Files.readAllBytes(tempParquet);
+                s3Service.putObject(bucket, key, parquetBytes, "application/octet-stream", java.util.Map.of());
+                LOG.infov("Flushed {0} records from stream {1} to s3://{2}/{3} (Parquet)", toFlush.size(), streamName, bucket, key);
+            } else {
+                // DuckDB unavailable (native image): store raw NDJSON instead.
+                String jsonKey = streamName + "/" + UUID.randomUUID() + ".json";
+                byte[] jsonBytes = Files.readAllBytes(tempJson);
+                s3Service.putObject(bucket, jsonKey, jsonBytes, "application/x-ndjson", java.util.Map.of());
+                LOG.infov("Flushed {0} records from stream {1} to s3://{2}/{3} (NDJSON, DuckDB unavailable)",
+                          toFlush.size(), streamName, bucket, jsonKey);
+            }
         } catch (Exception e) {
             LOG.errorv("Failed to flush Firehose stream {0}: {1}", streamName, e.getMessage());
+        } finally {
+            silentDelete(tempJson);
+            silentDelete(tempParquet);
+        }
+    }
+
+    private void silentDelete(Path path) {
+        if (path != null) {
+            try {
+                Files.deleteIfExists(path);
+            } catch (IOException e) {
+                LOG.warnv("Could not delete temp file {0}: {1}", path, e.getMessage());
+            }
         }
     }
 }
