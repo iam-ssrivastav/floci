@@ -40,11 +40,6 @@
     <dependencies>
         <!-- Quarkus REST (RESTEasy Reactive) -->
         <dependency>
-          <groupId>org.duckdb</groupId>
-          <artifactId>duckdb_jdbc</artifactId>
-          <version>1.4.4.0</version>
-        </dependency>
-        <dependency>
           <groupId>io.quarkus</groupId>
           <artifactId>quarkus-rest-jackson</artifactId>
         </dependency>

@@ -37,9 +37,5 @@ COPY --from=build /app/target/*-runner /app/application
 
 RUN chmod +x /app/application
 
-# Note: DuckDB (Athena query execution, Firehose Parquet conversion) requires the JVM image.
-# In native mode, DuckDbEngine detects unavailability at startup and disables those features
-# gracefully. Glue catalog and Firehose metadata operations remain fully functional.
-
 USER 1001
 ENTRYPOINT ["/app/application"]

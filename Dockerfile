@@ -11,9 +11,7 @@ COPY src/ src/
 RUN mvn clean package -DskipTests -q
 
 # Stage 2: Runtime
-# Use a glibc-based image. DuckDB's native library is compiled against glibc;
-# musl (Alpine) causes SIGSEGV in glibc-only symbols such as init_have_lse_atomics.
-FROM eclipse-temurin:25-jre
+FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
 
 COPY --from=build /build/target/quarkus-app/ quarkus-app/

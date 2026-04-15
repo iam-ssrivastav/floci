@@ -19,9 +19,8 @@ Floci emulates Amazon Data Firehose for streaming data ingestion and delivery to
 ## How it works
 
 1. **Buffering**: Incoming records are buffered in memory.
-2. **Automatic Flush**: Floci automatically flushes the buffer to S3 after a certain number of records (default is 5 for immediate feedback during local development).
-3. **Format Conversion**: Injected JSON records are automatically converted to **Parquet** format during the flush process using DuckDB.
-4. **S3 Delivery**: Parquet files are uploaded to the `floci-firehose-results` bucket in S3.
+2. **Automatic Flush**: Floci automatically flushes the buffer to S3 after every 5 records for immediate local feedback.
+3. **Format**: Records are flushed as raw NDJSON (newline-delimited JSON) to the `floci-firehose-results` bucket.
 
 ## Example
 
