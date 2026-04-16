@@ -225,6 +225,52 @@ const client = new S3Client({
 });
 ```
 
+```go
+// Go (AWS SDK v2)
+cfg, err := config.LoadDefaultConfig(context.TODO(),
+    config.WithRegion("us-east-1"),
+    config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("test", "test", "")),
+    config.WithBaseEndpoint("http://localhost:4566"),
+)
+if err != nil {
+    log.Fatal(err)
+}
+
+client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+    o.UsePathStyle = true
+})
+```
+
+```rush
+// Rust (AWS SDK)
+let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
+    .region(aws_sdk_s3::config::Region::new("us-east-1"))
+    .credentials_provider(aws_sdk_s3::config::Credentials::new("test", "test", None, None, "floci"))
+    .endpoint_url("http://localhost:4566")
+    .load()
+    .await;
+
+let client = aws_sdk_s3::Client::new(&config);
+```
+
+```bash
+# Bash (AWS CLI)
+export AWS_ACCESS_KEY_ID=test
+export AWS_SECRET_ACCESS_KEY=test
+export AWS_DEFAULT_REGION=us-east-1
+
+tmp_file="$(mktemp)"
+echo "hello from floci" > "$tmp_file"
+
+aws --endpoint-url http://localhost:4566 s3 mb s3://my-bucket
+aws --endpoint-url http://localhost:4566 s3 cp "$tmp_file" s3://my-bucket/demo.txt
+aws --endpoint-url http://localhost:4566 s3 ls s3://my-bucket
+
+# Cleanup
+aws --endpoint-url http://localhost:4566 s3 rm s3://my-bucket/demo.txt
+rm -f "$tmp_file"
+```
+
 ## Compatibility Testing
 
 > For full compatibility validation against real SDK and client workflows, see the [compatibility-tests](./compatibility-tests/) directory.
