@@ -7,6 +7,7 @@
 | `4566` | HTTP | All AWS API calls (every service) |
 | `5100–5199` | HTTP | ECR Registry sidecar (`floci-ecr-registry`) — bound directly by that container, not the floci container |
 | `6379–6399` | TCP | ElastiCache Redis proxy, one port per replication group |
+| `6500–6599` | HTTPS | EKS k3s API server, one port per cluster (real mode only) |
 | `7001–7099` | TCP | RDS proxy, one port per DB instance |
 | `9200–9299` | HTTP | Lambda Runtime API (internal: consumed by spawned Lambda containers, not host-mapped) |
 | `9400–9499` | HTTP | OpenSearch proxy, reserved for `opensearch.mode: real` (not yet available) |
@@ -42,6 +43,27 @@ The port assigned to a replication group is returned in the `PrimaryEndpoint.Por
 
 !!! note
     The proxy range starts at `6379` by default (matching the standard Redis port for the first cluster). Configure the range with `FLOCI_SERVICES_ELASTICACHE_PROXY_BASE_PORT` and `FLOCI_SERVICES_ELASTICACHE_PROXY_MAX_PORT`.
+
+## Ports 6500–6599 — EKS (real mode)
+
+When you create an EKS cluster in real mode, Floci starts a k3s Docker container and binds its API server to the next available port in the `6500–6599` range. The Kubernetes endpoint returned by `DescribeCluster` points to `https://localhost:<hostPort>`.
+
+These ports are only needed in real mode (`FLOCI_SERVICES_EKS_MOCK=false`). In mock mode no k3s containers are started and no ports are used.
+
+```bash
+# Create a cluster (real mode)
+aws eks create-cluster \
+  --name my-cluster \
+  --role-arn arn:aws:iam::000000000000:role/eks-role \
+  --resources-vpc-config subnetIds=[],securityGroupIds=[] \
+  --endpoint-url http://localhost:4566
+
+# The endpoint field in DescribeCluster tells you the API server port:
+# "endpoint": "https://localhost:6500"
+```
+
+!!! note
+    Configure the range with `FLOCI_SERVICES_EKS_API_SERVER_BASE_PORT` and `FLOCI_SERVICES_EKS_API_SERVER_MAX_PORT`.
 
 ## Ports 7001–7099 — RDS
 
@@ -101,9 +123,12 @@ services:
     ports:
       - "4566:4566"           # All AWS API calls
       - "6379-6399:6379-6399" # ElastiCache / Redis proxy ports
+      - "6500-6599:6500-6599" # EKS k3s API server ports (real mode only)
       - "7001-7099:7001-7099" # RDS / PostgreSQL + MySQL proxy ports
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 ```
+
+Omit `6500-6599` if you run EKS in mock mode (`FLOCI_SERVICES_EKS_MOCK=true`).
 
 If your application runs inside the same Docker Compose network, it can reach Floci directly on container port `4566` — the host port mapping is only needed for tools running on the host (CLI, IDE plugins, etc.).

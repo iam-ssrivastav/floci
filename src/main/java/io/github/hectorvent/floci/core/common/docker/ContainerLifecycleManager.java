@@ -254,6 +254,11 @@ public class ContainerLifecycleManager {
     private HostConfig buildHostConfig(ContainerSpec spec) {
         HostConfig hostConfig = HostConfig.newHostConfig();
 
+        // Privileged mode (required for e.g. k3s containers)
+        if (spec.privileged()) {
+            hostConfig.withPrivileged(true);
+        }
+
         // Memory limit
         if (spec.hasMemoryLimit()) {
             hostConfig.withMemory(spec.memoryBytes());

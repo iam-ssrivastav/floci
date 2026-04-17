@@ -139,3 +139,6 @@ floci:
       enabled: true
     bedrock-runtime:
       enabled: true
+    eks:
+      enabled: true
+      mock: true
