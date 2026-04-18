@@ -1029,22 +1029,18 @@ public class S3Controller {
         try {
             String xml = new String(body, StandardCharsets.UTF_8);
             NotificationConfiguration config = new NotificationConfiguration();
+            List<ParsedNotificationGroup> queues = parseNotificationGroups(xml, "QueueConfiguration", "QueueArn", "Queue");
+            List<ParsedNotificationGroup> topics = parseNotificationGroups(xml, "TopicConfiguration", "TopicArn", "Topic");
+            List<ParsedNotificationGroup> functions = parseNotificationGroups(xml, "CloudFunctionConfiguration", "CloudFunctionArn", "LambdaFunctionArn", "CloudFunction");
 
-            for (var parsed : parseNotificationGroups(xml, "QueueConfiguration", "Queue")) {
-                config.getQueueConfigurations().add(
-                        new QueueNotification(parsed.id, parsed.arn, parsed.events, parsed.filterRules));
+            for (var p : queues) {
+                config.getQueueConfigurations().add(new QueueNotification(p.id, p.arn, p.events, p.filterRules));
             }
-            for (var parsed : parseNotificationGroups(xml, "TopicConfiguration", "Topic")) {
-                config.getTopicConfigurations().add(
-                        new TopicNotification(parsed.id, parsed.arn, parsed.events, parsed.filterRules));
+            for (var p : topics) {
+                config.getTopicConfigurations().add(new TopicNotification(p.id, p.arn, p.events, p.filterRules));
             }
-            for (var parsed : parseNotificationGroups(xml, "LambdaFunctionConfiguration", "LambdaFunctionArn")) {
-                config.getLambdaFunctionConfigurations().add(
-                        new LambdaNotification(parsed.id, parsed.arn, parsed.events, parsed.filterRules));
-            }
-            for (var parsed : parseNotificationGroups(xml, "CloudFunctionConfiguration", "CloudFunction")) {
-                config.getLambdaFunctionConfigurations().add(
-                        new LambdaNotification(parsed.id, parsed.arn, parsed.events, parsed.filterRules));
+            for (var p : functions) {
+                config.getLambdaFunctionConfigurations().add(new LambdaNotification(p.id, p.arn, p.events, p.filterRules));
             }
 
             config.setEventBridgeEnabled(xml.contains("<EventBridgeConfiguration"));
@@ -1060,23 +1056,32 @@ public class S3Controller {
                                             List<FilterRule> filterRules) {}
 
     private static List<ParsedNotificationGroup> parseNotificationGroups(
-            String xml, String groupElement, String arnElement) {
-        var groups = XmlParser.extractGroupsMulti(xml, groupElement);
-        var filters = XmlParser.extractPairsPerGroup(xml, groupElement,
+            String xml, String parentTag, String... arnElements) {
+        var groups = XmlParser.extractGroupsMulti(xml, parentTag);
+        var filters = XmlParser.extractPairsPerGroup(xml, parentTag,
                 "FilterRule", "Name", "Value");
         List<ParsedNotificationGroup> result = new ArrayList<>();
         for (int i = 0; i < groups.size(); i++) {
             var group = groups.get(i);
             String id = group.getOrDefault("Id", List.of("")).getFirst();
-            List<String> arns = group.get(arnElement);
+            
+            String arn = null;
+            for (String element : arnElements) {
+                List<String> values = group.get(element);
+                if (values != null && !values.isEmpty()) {
+                    arn = values.getFirst();
+                    break;
+                }
+            }
+            
             List<String> events = group.get("Event");
-            if (arns != null && !arns.isEmpty() && events != null && !events.isEmpty()) {
+            if (arn != null && events != null && !events.isEmpty()) {
                 List<FilterRule> rules = i < filters.size()
                         ? filters.get(i).entrySet().stream()
                             .map(e -> new FilterRule(e.getKey(), e.getValue()))
                             .toList()
                         : List.of();
-                result.add(new ParsedNotificationGroup(id, arns.getFirst(), events, rules));
+                result.add(new ParsedNotificationGroup(id, arn, events, rules));
             }
         }
         return result;
